@@ -346,8 +346,11 @@ class CircuitBreakerState(object):
         for listener in self._breaker.listeners:
             listener.before_call(self._breaker, func, *args, **kwargs)
 
-        ret = func(*args, **kwargs)
-        return ret
+        if func:
+            ret = func(*args, **kwargs)
+            return ret
+        else:
+            return None
 
     def generator_call(self, wrapped_generator):
         try:
