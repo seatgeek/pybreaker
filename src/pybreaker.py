@@ -170,11 +170,11 @@ class CircuitBreaker(object):
         """
         self._state._handle_success()
 
-    def handle_error(self, e):
+    def handle_error(self, e, reraise=True):
         """
         Sends an error event to the circuit breaker.
         """
-        self._state._handle_error(e)
+        self._state._handle_error(e, reraise=reraise)
 
     def open(self):
         """
@@ -293,7 +293,7 @@ class CircuitBreakerState(object):
         """
         return self._name
 
-    def _handle_error(self, exc):
+    def _handle_error(self, exc, reraise=True):
         """
         Handles a failed call to the guarded operation.
         """
@@ -304,7 +304,8 @@ class CircuitBreakerState(object):
                 listener.failure(self._breaker, exc)
         else:
             self._handle_success()
-        raise exc
+        if reraise:
+            raise exc
 
     def _handle_success(self):
         """
