@@ -446,8 +446,6 @@ class CircuitOpenState(CircuitBreakerState):
             raise CircuitBreakerError(error_msg)
         else:
             self._breaker.half_open()
-            self._breaker.call(func, *args, **kwargs)
-
 
 class CircuitHalfOpenState(CircuitBreakerState):
     """
