@@ -152,6 +152,30 @@ class CircuitBreaker(object):
         with self._lock:
             return self._state.call(func, *args, **kwargs)
 
+    def call_future(self, func, *args, **kwargs):
+        """
+        For functions which return a future rather than executing in line,
+        checks the rules implemented by the current state of the circuit breaker
+        and generates the future without checking for success / error.
+
+        The caller is responsible for calling `handle_success` / `handle_error`
+        after the function completes.
+        """
+        with self._lock:
+            return self._state.async_call(func, *args, **kwargs)
+
+    def handle_success(self):
+        """
+        Sends a success event to the circuit breaker.
+        """
+        self._state._handle_success()
+
+    def handle_error(self, e):
+        """
+        Sends an error event to the circuit breaker.
+        """
+        self._state._handle_error(e)
+
     def open(self):
         """
         Opens the circuit, e.g., the following calls will immediately fail
@@ -311,6 +335,18 @@ class CircuitBreakerState(object):
             self._handle_error(e)
         else:
             self._handle_success()
+        return ret
+
+    def async_call(self, func, *args, **kwargs):
+        """In the situation where `func` returns a future, we
+        don't want to handle success at this stage"""
+        ret = None
+
+        self.before_call(func, *args, **kwargs)
+        for listener in self._breaker.listeners:
+            listener.before_call(self._breaker, func, *args, **kwargs)
+
+        ret = func(*args, **kwargs)
         return ret
 
     def generator_call(self, wrapped_generator):
