@@ -152,7 +152,6 @@ class CircuitBreaker(object):
         with self._lock:
 
             ret = None
-
             self._state.before_call(func, *args, **kwargs)
 
             for listener in self.listeners:
@@ -168,6 +167,40 @@ class CircuitBreaker(object):
             else:
                 self._state._handle_success()
             return ret
+
+    def call_future(self, func, *args, **kwargs):
+        """
+        For functions which return a future rather than executing in line,
+        checks the rules implemented by the current state of the circuit breaker
+        and generates the future without checkout for success / error
+
+        If `func` is `None`, we are simply leveraging the circuit breaker gate
+        and we will not attempt to call func()
+        """
+        ret = None
+
+        self._state.before_call(func, *args, **kwargs)
+
+        for listener in self.listeners:
+            listener.before_call(self, func, *args, **kwargs)
+
+        if func:
+            ret = func(*args, **kwargs)
+            return ret
+        else:
+            return None
+
+    def handle_success(self):
+        """
+        Sends a success event to the circuit breaker.
+        """
+        self._state._handle_success()
+
+    def handle_error(self, e, reraise=False):
+        """
+        Sends an error event to the circuit breaker.
+        """
+        self._state._handle_error(e, reraise=reraise)
 
     def open(self):
         """
@@ -286,7 +319,7 @@ class CircuitBreakerState(object):
         """
         return self._name
 
-    def _handle_error(self, exc):
+    def _handle_error(self, exc, reraise=True):
         """
         Handles a failed call to the guarded operation.
         """
@@ -297,7 +330,8 @@ class CircuitBreakerState(object):
                 listener.failure(self._breaker, exc)
         else:
             self._handle_success()
-        raise exc
+        if reraise:
+            raise exc
 
     def _handle_success(self):
         """

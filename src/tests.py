@@ -5,6 +5,45 @@ from time import sleep
 
 import unittest
 
+class AsyncCircuitBreakerTestCase(unittest.TestCase):
+
+    def setUp(self):
+        self.breaker = CircuitBreaker()
+
+    def make_async_call(self, real=None):
+        if real is None:
+            real = lambda x: True
+
+        def wrapper():
+            return real
+
+        fut = self.breaker.call_future(wrapper)
+        response = fut()
+        if response:
+            self.breaker.handle_success()
+        else:
+            self.breaker.handle_error(Exception("fail"))
+
+    def test_success_async_call(self):
+        def f():
+            return True
+        self.make_async_call(f)
+        self.assertEqual(0, self.breaker.fail_counter)
+        self.assertEqual('closed', self.breaker.current_state)
+
+    def test_failed_async_call(self):
+        def f():
+            return False
+        self.make_async_call(f)
+        self.assertEqual(1, self.breaker.fail_counter)
+        self.assertEqual('closed', self.breaker.current_state)
+
+    def test_handle_error_reraise(self):
+        # does not raise
+        self.breaker.handle_error(Exception("fail"))
+        # raises
+        self.assertRaises(Exception, self.breaker.handle_error, Exception("fail"), True)
+
 class CircuitBreakerTestCase(unittest.TestCase):
     """
     Tests for the CircuitBreaker class.
