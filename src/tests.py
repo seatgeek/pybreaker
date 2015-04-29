@@ -44,6 +44,22 @@ class AsyncCircuitBreakerTestCase(unittest.TestCase):
         # raises
         self.assertRaises(Exception, self.breaker.handle_error, Exception("fail"), True)
 
+    def test_failed_fall_when_half_open(self):
+        def fun():
+            raise NotImplementedError()
+
+        self.breaker.half_open()
+        self.assertEqual(0, self.breaker.fail_counter)
+        self.assertEqual('half-open', self.breaker.current_state)
+
+        # Circuit should open
+        def f():
+            return False
+
+        self.make_async_call(f)
+        self.assertEqual(1, self.breaker.fail_counter)
+        self.assertEqual('open', self.breaker.current_state)
+
 class CircuitBreakerTestCase(unittest.TestCase):
     """
     Tests for the CircuitBreaker class.

@@ -325,11 +325,18 @@ class CircuitBreakerState(object):
         """
         if self._breaker.is_system_error(exc):
             self._breaker._inc_counter()
-            self.on_failure(exc)
+
+            try:
+                self.on_failure(exc)
+            except CircuitBreakerError:
+                if reraise:
+                    raise
+
             for listener in self._breaker.listeners:
                 listener.failure(self._breaker, exc)
         else:
             self._handle_success()
+
         if reraise:
             raise exc
 
