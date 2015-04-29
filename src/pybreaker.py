@@ -150,31 +150,24 @@ class CircuitBreaker(object):
         implemented by the current state of this circuit breaker.
         """
         with self._lock:
-            return self._state.call(func, *args, **kwargs)
 
-    def call_future(self, func, *args, **kwargs):
-        """
-        For functions which return a future rather than executing in line,
-        checks the rules implemented by the current state of the circuit breaker
-        and generates the future without checking for success / error.
+            ret = None
 
-        The caller is responsible for calling `handle_success` / `handle_error`
-        after the function completes.
-        """
-        with self._lock:
-            return self._state.async_call(func, *args, **kwargs)
+            self._state.before_call(func, *args, **kwargs)
 
-    def handle_success(self):
-        """
-        Sends a success event to the circuit breaker.
-        """
-        self._state._handle_success()
+            for listener in self.listeners:
+                listener.before_call(self, func, *args, **kwargs)
 
-    def handle_error(self, e, reraise=True):
-        """
-        Sends an error event to the circuit breaker.
-        """
-        self._state._handle_error(e, reraise=reraise)
+            try:
+                ret = func(*args, **kwargs)
+                if isinstance(ret, types.GeneratorType):
+                    return self._state.generator_call(ret)
+
+            except BaseException as e:
+                self._state._handle_error(e)
+            else:
+                self._state._handle_success()
+            return ret
 
     def open(self):
         """
@@ -293,7 +286,7 @@ class CircuitBreakerState(object):
         """
         return self._name
 
-    def _handle_error(self, exc, reraise=True):
+    def _handle_error(self, exc):
         """
         Handles a failed call to the guarded operation.
         """
@@ -304,8 +297,7 @@ class CircuitBreakerState(object):
                 listener.failure(self._breaker, exc)
         else:
             self._handle_success()
-        if reraise:
-            raise exc
+        raise exc
 
     def _handle_success(self):
         """
@@ -315,43 +307,6 @@ class CircuitBreakerState(object):
         self.on_success()
         for listener in self._breaker.listeners:
             listener.success(self._breaker)
-
-    def call(self, func, *args, **kwargs):
-        """
-        Calls `func` with the given `args` and `kwargs`, and updates the
-        circuit breaker state according to the result.
-        """
-        ret = None
-
-        self.before_call(func, *args, **kwargs)
-        for listener in self._breaker.listeners:
-            listener.before_call(self._breaker, func, *args, **kwargs)
-
-        try:
-            ret = func(*args, **kwargs)
-            if isinstance(ret, types.GeneratorType):
-                return self.generator_call(ret)
-
-        except BaseException as e:
-            self._handle_error(e)
-        else:
-            self._handle_success()
-        return ret
-
-    def async_call(self, func, *args, **kwargs):
-        """In the situation where `func` returns a future, we
-        don't want to handle success at this stage"""
-        ret = None
-
-        self.before_call(func, *args, **kwargs)
-        for listener in self._breaker.listeners:
-            listener.before_call(self._breaker, func, *args, **kwargs)
-
-        if func:
-            ret = func(*args, **kwargs)
-            return ret
-        else:
-            return None
 
     def generator_call(self, wrapped_generator):
         try:
@@ -438,6 +393,8 @@ class CircuitOpenState(CircuitBreakerState):
             for listener in self._breaker.listeners:
                 listener.state_change(self._breaker, prev_state, self)
 
+
+
     def before_call(self, func, *args, **kwargs):
         """
         After the timeout elapses, move the circuit breaker to the "half-open"
@@ -450,6 +407,7 @@ class CircuitOpenState(CircuitBreakerState):
             raise CircuitBreakerError(error_msg)
         else:
             self._breaker.half_open()
+
 
 class CircuitHalfOpenState(CircuitBreakerState):
     """

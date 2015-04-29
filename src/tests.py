@@ -1,11 +1,9 @@
 #-*- coding:utf-8 -*-
 
 from pybreaker import *
-from random import random
 from time import sleep
 
 import unittest
-
 
 class CircuitBreakerTestCase(unittest.TestCase):
     """
@@ -161,8 +159,13 @@ class CircuitBreakerTestCase(unittest.TestCase):
         """
         self.breaker = CircuitBreaker(fail_max=3, reset_timeout=0.5)
 
-        def suc(): return True
-        def err(): raise NotImplementedError()
+        data = {'ct' : 0}
+        def suc():
+            data['ct'] += 1
+            return True
+
+        def err():
+            raise NotImplementedError()
 
         self.assertRaises(NotImplementedError, self.breaker.call, err)
         self.assertRaises(NotImplementedError, self.breaker.call, err)
@@ -177,15 +180,18 @@ class CircuitBreakerTestCase(unittest.TestCase):
         sleep(0.6)
 
         # Circuit should close again
+        data['ct'] = 0
         self.assertTrue(self.breaker.call(suc))
         self.assertEqual(0, self.breaker.fail_counter)
         self.assertEqual('closed', self.breaker.current_state)
+        self.assertEqual(data['ct'], 1)
 
     def test_failed_call_when_halfopen(self):
         """CircuitBreaker: it should open the circuit when a call fails in
         half-open state.
         """
-        def fun(): raise NotImplementedError()
+        def fun():
+            raise NotImplementedError()
 
         self.breaker.half_open()
         self.assertEqual(0, self.breaker.fail_counter)
@@ -200,7 +206,10 @@ class CircuitBreakerTestCase(unittest.TestCase):
         """CircuitBreaker: it should close the circuit when a call succeeds in
         half-open state.
         """
-        def fun(): return True
+        data = {'ct' : 0}
+        def fun():
+            data['ct'] += 1
+            return True
 
         self.breaker.half_open()
         self.assertEqual(0, self.breaker.fail_counter)
@@ -210,12 +219,14 @@ class CircuitBreakerTestCase(unittest.TestCase):
         self.assertTrue(self.breaker.call(fun))
         self.assertEqual(0, self.breaker.fail_counter)
         self.assertEqual('closed', self.breaker.current_state)
+        self.assertEqual(data['ct'], 1)
 
     def test_close(self):
         """CircuitBreaker: it should allow the circuit to be closed manually.
         """
         self.breaker = CircuitBreaker(fail_max=3)
-        def func(): raise NotImplementedError()
+        def func():
+            raise NotImplementedError()
 
         self.assertRaises(NotImplementedError, self.breaker.call, func)
         self.assertRaises(NotImplementedError, self.breaker.call, func)
