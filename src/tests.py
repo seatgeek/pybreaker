@@ -60,6 +60,24 @@ class AsyncCircuitBreakerTestCase(unittest.TestCase):
         self.assertEqual(1, self.breaker.fail_counter)
         self.assertEqual('open', self.breaker.current_state)
 
+    def test_handle_soft_success_does_not_open(self):
+        def fun():
+            raise NotImplementedError()
+
+        self.breaker.half_open()
+        self.assertEqual(0, self.breaker.fail_counter)
+        self.assertEqual('half-open', self.breaker.current_state)
+
+        # Circuit should open
+        def f():
+            return False
+
+        self.breaker.call_future(None)
+        self.breaker.handle_soft_success()
+        self.assertEqual(1, self.breaker.fail_counter)
+        self.assertEqual('open', self.breaker.current_state)
+
+
 class CircuitBreakerTestCase(unittest.TestCase):
     """
     Tests for the CircuitBreaker class.

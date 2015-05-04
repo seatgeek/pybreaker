@@ -202,6 +202,17 @@ class CircuitBreaker(object):
         """
         self._state._handle_error(e, reraise=reraise)
 
+    def handle_soft_success(self):
+        """
+        Soft success is a 'success' that isn't quite successful enough
+        for us to close the circuit breaker.
+        """
+        with self._lock:
+            if self.current_state == "closed":
+                return self.handle_success()
+            else:
+                return self.handle_error(None)
+
     def open(self):
         """
         Opens the circuit, e.g., the following calls will immediately fail
