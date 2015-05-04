@@ -138,6 +138,8 @@ class CircuitBreaker(object):
         system malfunction. Business exceptions should not cause this circuit
         breaker to open.
         """
+        if exception is None:
+            return True
         texc = type(exception)
         for exc in self._excluded_exceptions:
             if issubclass(texc, exc):
@@ -288,10 +290,10 @@ class CircuitBreakerListener(object):
         """
         pass
 
-    def failure(self, cb, exc):
+    def failure(self, cb, exc=None):
         """
         This callback function is called when a function called by the circuit
-        breaker `cb` fails.
+        breaker `cb` fails. EXC can be null.
         """
         pass
 
@@ -330,7 +332,7 @@ class CircuitBreakerState(object):
         """
         return self._name
 
-    def _handle_error(self, exc, reraise=True):
+    def _handle_error(self, exc=None, reraise=True):
         """
         Handles a failed call to the guarded operation.
         """
@@ -348,7 +350,7 @@ class CircuitBreakerState(object):
         else:
             self._handle_success()
 
-        if reraise:
+        if reraise and exc:
             raise exc
 
     def _handle_success(self):
@@ -385,7 +387,7 @@ class CircuitBreakerState(object):
         """
         pass
 
-    def on_failure(self, exc):
+    def on_failure(self, exc=None):
         """
         Override this method to be notified when a call to the guarded
         operation fails.
@@ -413,7 +415,7 @@ class CircuitClosedState(CircuitBreakerState):
             for listener in self._breaker.listeners:
                 listener.state_change(self._breaker, prev_state, self)
 
-    def on_failure(self, exc):
+    def on_failure(self, exc=None):
         """
         Moves the circuit breaker to the "open" state once the failures
         threshold is reached.
@@ -479,7 +481,7 @@ class CircuitHalfOpenState(CircuitBreakerState):
             for listener in self._breaker._listeners:
                 listener.state_change(self._breaker, prev_state, self)
 
-    def on_failure(self, exc):
+    def on_failure(self, exc=None):
         """
         Opens the circuit breaker.
         """

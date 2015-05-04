@@ -47,6 +47,25 @@ class AsyncCircuitBreakerTestCase(unittest.TestCase):
     def test_handle_empty_error(self):
         self.breaker.handle_error(None)
 
+    def test_handle_transition_events_with_empty(self):
+        class Listener(CircuitBreakerListener):
+            def __init__(self):
+                self.out = ''
+
+            def state_change(self, cb, old_state, new_state):
+                assert cb
+                if old_state: self.out += old_state.name
+                if new_state: self.out += '->' + new_state.name
+                self.out += ','
+
+            def failure(self, cb, exc):
+                print str(exc)
+
+        listener = Listener()
+        self.breaker = CircuitBreaker(listeners=(listener,))
+        self.breaker.handle_error(None)
+
+
     def test_failed_fall_when_half_open(self):
         def fun():
             raise NotImplementedError()
