@@ -5,7 +5,7 @@ from setuptools import setup
 
 setup(
     name = 'pybreaker',
-    version = '0.2.3',
+    version = '0.2.4',
     description = 'Python implementation of the Circuit Breaker pattern',
     long_description = open('README.rst', 'r').read(),
     keywords = ['design', 'pattern', 'circuit', 'breaker', 'integration'],
