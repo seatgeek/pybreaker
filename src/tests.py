@@ -44,6 +44,9 @@ class AsyncCircuitBreakerTestCase(unittest.TestCase):
         # raises
         self.assertRaises(Exception, self.breaker.handle_error, Exception("fail"), True)
 
+    def test_handle_empty_error(self):
+        self.breaker.handle_error(None)
+
     def test_failed_fall_when_half_open(self):
         def fun():
             raise NotImplementedError()
