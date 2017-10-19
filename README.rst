@@ -1,3 +1,5 @@
+This is an older fork, only used by the listingfeed. For a more up to date version, use https://github.com/seatgeek/pybreaker-2
+=========
 
 PyBreaker
 =========
